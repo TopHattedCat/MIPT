@@ -1,0 +1,202 @@
+<html>
+	<head>
+		<title>MIPT - IPTorrents Client</title>
+		<style>
+			.fileslist:hover
+			{
+				cursor: pointer;
+			}
+		</style>
+		<link rel="stylesheet" href="bootstrap.min.css">
+		<script src="jquery-2.1.4.min.js"></script>
+		<script>
+			var request = require("request");
+			var jsdom = require("jsdom");
+			var CFS = require("tough-cookie-filestore");
+			var fs = require("fs");
+
+			var j = request.jar(new CFS("cookies.json"));
+
+			request.defaults({
+				jar: j
+			});
+
+			MIPT = {};
+
+			MIPT.GetPageDOM = function(page, cb) {
+				request({
+					url: "https://iptorrents.com/" + page,
+					jar: j
+				}, function(err, res, body) {
+					jsdom.env(body, function(domErr, wind) {
+						cb(wind);
+					});
+				});
+			};
+
+			MIPT.GetRatioInfo = function(cb) {
+				MIPT.GetPageDOM("indexipt.php", function(wind) {
+					var ratio = $(wind.document).find(".c_ratio").children().html();
+					var up = $(wind.document).find(".c_ratio").children().parent().next();
+					var down = $(wind.document).find(".c_ratio").children().parent().next().next();
+					cb({
+						Ratio: parseFloat(ratio),
+						Upload: parseFloat(up[0].innerHTML),
+						Download: parseFloat(down[0].innerHTML)
+					});
+				});
+			};
+
+			MIPT.RenderTorrentsList = function(torrents, isSearch) {
+				var list = $("#torrentlist");
+				var str;
+				if (isSearch) {
+					str = '<table style="width: 100%" class="table table-hover"><tr><th>Name</th><th><a href="#" onclick=\'Sort("Seeders")\'>Seeders</a></th><th><a href="#" onclick=\'Sort("Leechers")\'>Leechers</a></th><th>Size</th></tr>';
+				} else {
+					str = '<table style="width: 100%" class="table table-hover"><tr><th>Name</th><th>Seeders</th><th>Leechers</th><th>Size</th></tr>';
+				}
+				
+				$.each(torrents, function(k, v) {
+					str +=  "<tr>";
+					str += "<td><a onclick='DL(\"" + v.Name +"\", \"" + v.DownloadURL+ "\")' class='fileslist'>" + v.Name + " <a class='pull-right fileslist' onclick='Info(this, \"" + v.InfoPageURL + "\")'><img src='page_save.png'/></a></a></td>";
+					str += "<td>" + v.Seeders + "</td>";
+					str += "<td>" + v.Leechers + "</td>";
+					str += "<td>" + v.Size + "</td>";
+					str += "</tr>";
+				});
+				str += "</table>";
+				list.html(str);
+			}
+
+			MIPT.ParseTorrents = function(wind) {
+				var TorrentsTable = [];
+				var children = $(wind.document).find(".torrents").children().children();
+				$(wind.document).find(".torrents").children().children().each(function(k, v) {
+					if (k == 0) { return; }
+					TorrentsTable.push({
+						Name: v.children[1].children[0].innerHTML,
+						Seeders: parseInt(v.children[7].innerHTML),
+						Leechers: parseInt(v.children[8].innerHTML),
+						DownloadURL: v.children[3].children[0].href.substring(7),
+						Size: v.children[5].innerHTML,
+						InfoPageURL: v.children[1].children[0].href
+					});
+				});
+				return TorrentsTable;
+			};
+
+			MIPT.SearchTorrents = function(searchFor, cb) {
+				MIPT.SearchTerm = searchFor;
+				MIPT.GetPageDOM("t?89=&90=&6=&48=&62=&23=&24=&25=&66=&65=&79=&22=&5=&4=&60=&q=" + encodeURI(searchFor), function(wind) {
+					cb(MIPT.ParseTorrents(wind));
+				});
+			};
+
+			$(document).ready(NewTorrents);
+			$(document).ready(function() {
+				MIPT.GetRatioInfo(function(ratio) {
+					$("#ratio").html(ratio.Ratio);
+					$("#up").html(ratio.Upload);
+					$("#down").html(ratio.Download);
+				});
+
+				setInterval(function() {
+					MIPT.GetRatioInfo(function(ratio) {
+						$("#ratio").html(ratio.Ratio);
+						$("#up").html(ratio.Upload);
+						$("#down").html(ratio.Download);
+					});
+				}, 60000);
+			});
+
+			function NewTorrents() {
+				MIPT.GetPageDOM("t?", function(wind) {
+					MIPT.RenderTorrentsList(MIPT.ParseTorrents(wind));
+				});
+			};
+
+			function PopularTorrents() {
+				MIPT.GetPageDOM("t?90;79;89;66;65;62;60;48;25;24;23;22;6;5;4;o=seeders", function(wind) {
+					MIPT.RenderTorrentsList(MIPT.ParseTorrents(wind));
+				});
+			};
+
+			function Search() {
+				var searchText = $("#searchbox").val();
+				MIPT.SearchTorrents(searchText, function(torrents) {
+					MIPT.RenderTorrentsList(torrents, true);
+				});
+			}
+
+			function SearchEnt(e) {
+				if (e.keyCode == 13) {
+					Search();
+				}
+			};
+
+			function DL(name, url) {
+				var r = request({
+					url: "https://iptorrents.com" + url,
+					jar: j
+				});
+				r.pipe(fs.createWriteStream(name + ".torrent"));
+				r.on("end", function() {
+					window.location.href = name + ".torrent";
+				});
+			};
+
+			function Sort(type) {
+				var str = "t?60;4;5;22;79;65;24;23;62;25;48;6;90;66;89;q=" + encodeURI(MIPT.SearchTerm);
+				switch (type) {
+					case "Seeders":
+						str += ";o=seeders";
+						break;
+					case "Leechers":
+						str += ";o=leechers";
+						break;
+				};
+
+				MIPT.GetPageDOM(str, function(wind) {
+					MIPT.RenderTorrentsList(MIPT.ParseTorrents(wind), true);
+				});
+			};
+
+			function Info(element, url) {
+				var str = "<br><div style='padding: 16px 16px 16px 16px;'><table class='table table-striped'><tr><th>File Name</th><th>Size</th></tr>";
+				var id = url.match(/\d+$/)[0];
+				MIPT.GetPageDOM("t/" + id + "/files", function(wind) {
+					var info = $(wind.document).find(".t1");
+					$.each(info[0].children[0].children, function(k, v) {
+						if (k == 0) { return; }
+						if (isNaN(k)) { return; }
+						str += "<tr>";
+						str += "<td>" + v.children[0].innerHTML + "</td>";
+						str += "<td>" + v.children[1].innerHTML + "</td>";
+						str += "</tr>";
+					});
+
+					str += "</table></div>";
+
+					$(element).parent().append(str);
+				});
+			}
+		</script>
+	</head>
+	<body>
+		<div class="container">
+			<br>
+			<span><b>Ratio</b> <span id="ratio"></span></span>
+			<span class="pull-right"><b>Uploaded</b> <span id="up">0</span>GB <b>Downloaded </b> <span id="down">0</span>GB</span>
+			<center>
+				<h1>IPTorrents</h1>
+				<button onclick="NewTorrents()" class="btn btn-danger">New Torrents</button> <button onclick="PopularTorrents()" class="btn btn-success">Top Torrents</button>
+				<br><br>
+				<div class="form-inline">
+					<input onkeypress="SearchEnt(event)" type="text" id="searchbox" class="form-control" placeholder="Search..."> <button onclick="Search()" class="btn btn-primary">Search</button>
+				</div>
+			</center>
+			<br><br>
+			<span id="torrentlist"></span>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,97 @@
+<html>
+	<head>
+		<title>MIPT - Log In</title>
+		<link rel="stylesheet" href="bootstrap.min.css">
+		<script src="jquery-2.1.4.min.js"></script>
+		<script>
+			var request = require("request");
+			var jsdom = require("jsdom");
+			var storage = require("node-persist");
+			var CFS = require("tough-cookie-filestore");
+
+			var j = request.jar(new CFS("cookies.json"));
+
+			storage.initSync();
+
+			$(document).ready(function() {
+				if (storage.getItemSync("remember_me") == true) {
+					$("#username").val(storage.getItemSync("username"));
+					$("#password").val(storage.getItemSync("password"));
+					$("#remember").attr("checked", true);
+				}
+
+				request.defaults({
+					jar: j
+				});
+	
+				global.MIPT = {};
+	
+				global.MIPT.Login = function(un, pw, cb) {
+					request.get({
+						url: "https://iptorrents.com/my.php",
+						jar: j
+					}, function(tErr, tRes, tBody) {
+						jsdom.env(tBody, function(bErr, wind) {
+							if ($(wind.document).find("title").html() == "Profile - IPTorrents - #1 Private Tracker&lt;!--IPTorrents - #1 Private Tracker--&gt;") {
+								location.href = "main.html";
+								return;
+							}
+
+							request.post({
+								url: "https://iptorrents.com/index.php",
+								form: {
+									username: un,
+									password: pw
+								},
+								jar: j
+							}, function(err, res, body) {
+								if (body == "") {
+									cb(true)
+								} else {
+									cb(false);
+								}
+							});
+						});
+					});
+				};
+	
+				global.signin = function() {
+					var un = $("#username").val();
+					var pass = $("#password").val();
+					var remember = $("#remember").val();
+	
+					global.MIPT.Login(un, pass, function(loggedIn) {
+						if (!loggedIn) {
+							$("#errorplace").html("<b>Incorrect UN/PW</b>");
+						} else {
+							if (remember == "on") {
+								storage.setItemSync("remember_me", true);
+								storage.setItemSync("username", un);
+								storage.setItemSync("password", pass);
+							}
+							
+							location.href = "main.html";
+						}
+					});
+				};
+			});
+		</script>
+	</head>
+	<body>
+		<div class="container">
+			<center>
+				<h1>Log In</h1>
+				<br>
+				<input type="text" id="username" placeholder="User Name" class="form-control">
+				<br>
+				<input type="password" id="password" placeholder="Password" class="form-control">
+				<br>
+				<input type="checkbox" id="remember"> Remember Log In Credentials
+				<br><br>
+				<button style="width: 100%" onclick="global.signin();" class="btn btn-primary">Log In</button>
+				<br>
+				<span id="errorplace"></span>
+			</center>
+		</div>
+	</body>
+</html>

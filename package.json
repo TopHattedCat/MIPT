@@ -1,0 +1,63 @@
+{
+    "webexe_settings": {
+        "linux-x32": false, 
+        "export_dir": "D:\\Development\\Web2ExeWin\\output", 
+        "windows-x64": false, 
+        "download_dir": "D:\\Development\\Web2ExeWin\\nw", 
+        "nw_compression_level": 0, 
+        "mac-x32": false, 
+        "windows-x32": true, 
+        "mac-x64": false, 
+        "nw_version": "0.12.1", 
+        "force_download": false, 
+        "linux-x64": false
+    }, 
+    "main": "index.html", 
+    "name": "mipt", 
+    "nodejs": true, 
+    "chromium-args": "", 
+    "description": "A better IPTorrents look", 
+    "additional_trust_anchors": "", 
+    "single-instance": true, 
+    "inject-js-end": "", 
+    "keywords": [
+        "iptorrents", 
+        "client", 
+        "web", 
+        "replacement"
+    ], 
+    "window": {
+        "fullscreen": false, 
+        "resizable": true, 
+        "show": true, 
+        "always-on-top": false, 
+        "frame": true, 
+        "title": "IPTorClient", 
+        "kiosk": false, 
+        "kiosk_emulation": false, 
+        "exe_icon": "", 
+        "visible": true, 
+        "as_desktop": false, 
+        "toolbar": false, 
+        "mac_icon": "", 
+        "position": "center", 
+        "show_in_taskbar": true, 
+        "height": 500, 
+        "width": 1000, 
+        "transparent": false, 
+        "icon": "icon.png"
+    }, 
+    "user-agent": "", 
+    "snapshot": "", 
+    "version": "0.1.0", 
+    "webkit": {
+        "page-cache": false, 
+        "java": false, 
+        "plugin": false
+    }, 
+    "inject-js-start": "", 
+    "node-remote": "*", 
+    "js-flags": "", 
+    "app_name": "IPTorClient", 
+    "node-main": ""
+}
